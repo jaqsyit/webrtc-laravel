@@ -7,7 +7,7 @@
     <meta name="peer-id" content="{{ $peerId }}">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Видео-звонок с {{ $peer->name }}</title>
-    @vite(['resources/js/app.js','resources/js/call.js']) {{-- app.js включает Echo --}}
+    @vite('resources/js/app.js')
     <style>
         body{font-family: system-ui,Arial; margin:0; padding:16px; background:#0b0f14; color:#e7edf3}
         .grid{display:grid; gap:12px; grid-template-columns:1fr 1fr}
