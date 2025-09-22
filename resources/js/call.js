@@ -56,87 +56,20 @@ async function postJSON(url, body){
 }
 
 async function initLocal(){
+    if(localStream) return;
     try{
-        const camId = selCam?.value || undefined;
-        const micId = selMic?.value || undefined;
-
-        const video = camId ? { deviceId: { exact: camId } } : true;
-        const audio = micId ? { deviceId: { exact: micId } } : true;
-
-        // мягкий TRY → если упадёт, попробуем проще
-        try{
-            localStream = await navigator.mediaDevices.getUserMedia({ video, audio });
-        }catch(e){
-            if(e.name==='OverconstrainedError' || e.name==='NotFoundError'){
-                localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
-            } else { throw e; }
-        }
-
+        // Можно сузить до { video: { width:1280, height:720 }, audio:true }
+        localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
         elLocal.srcObject = localStream;
-        enableControls(true);
-        setStatus('Камера/микрофон готовы');
-    }catch(e){
-        console.error(e);
-        if(e.name==='NotAllowedError'){ setStatus('Доступ запрещён в браузере/Windows. Разреши и обнови.'); return; }
-        if(e.name==='NotFoundError'){ setStatus('Устройства не найдены. Выбери камеру/микрофон в селекторах.'); return; }
-        setStatus(`ошибка ${e.name}: ${e.message}`);
-    }
-
-    try{
-        setStatus('Запрашиваем доступ к камере/микрофону…');
-        // мягкие, без exact — чтобы избежать OverconstrainedError
-        localStream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-            audio: true
-        });
-        elLocal.srcObject = localStream;
-        setStatus('Камера/микрофон разрешены');
+        setStatus("камера/микрофон готовы");
         enableControls(true);
     }catch(e){
         console.error(e);
-        if (e.name === 'NotAllowedError') {
-            setStatus('Доступ запрещён. Разреши в настройках сайта/Windows.');
-        } else if (e.name === 'NotFoundError') {
-            setStatus('Устройства не найдены. Проверь выбор устройства в браузере.');
-        } else if (e.name === 'OverconstrainedError') {
-            // фоллбэк на самые простые
-            try{
-                localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
-                elLocal.srcObject = localStream; enableControls(true);
-                setStatus('Разрешено (упростили настройки)');
-                return;
-            }catch(e2){ setStatus(`ошибка ${e2.name}: ${e2.message}`); }
-        } else {
-            setStatus(`ошибка ${e.name}: ${e.message}`);
-        }
+        setStatus("ошибка доступа к камере/микрофону");
     }
 }
 
-// Авто-запрос при открытии страницы
-document.addEventListener('DOMContentLoaded', async ()=>{
-    // если доступ заранее запрещён — покажем подсказку
-    try{
-        if (navigator.permissions) {
-            const [cam, mic] = await Promise.allSettled([
-                navigator.permissions.query({name:'camera'}),
-                navigator.permissions.query({name:'microphone'})
-            ]);
-            if (cam.value?.state === 'denied' || mic.value?.state === 'denied') {
-                setStatus('Доступ запрещён. Разреши в настройках сайта, потом обнови страницу.');
-            }
-        }
-    }catch{}
-    await initLocal();
-    if (localStream) { createPeer(); subscribeEcho(); }
-});
-
-
-
 function createPeer(){
-    if(!localStream){ setStatus('Нет локального стрима — нажми «Инициализировать»'); return; }
-    pc = new RTCPeerConnection(rtcConfig);
-    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-
     if(pc) pc.close();
     pc = new RTCPeerConnection(rtcConfig);
 
@@ -288,7 +221,6 @@ async function shareScreen(){
 // Кнопки
 btnInit.addEventListener("click", async ()=>{
     await initLocal();
-    if(!localStream) return;
     createPeer();
     subscribeEcho();
 });
@@ -308,41 +240,3 @@ window.addEventListener("beforeunload", () => {
 document.addEventListener("DOMContentLoaded", ()=>{
     setStatus("готов");
 });
-
-const selCam = document.querySelector('#selCam');
-const selMic = document.querySelector('#selMic');
-const btnPerms = document.querySelector('#btnPerms');
-
-async function listDevices(){
-    const devs = await navigator.mediaDevices.enumerateDevices();
-    const cams = devs.filter(d=>d.kind==='videoinput');
-    const mics = devs.filter(d=>d.kind==='audioinput');
-
-    selCam.innerHTML = cams.map(d=>`<option value="${d.deviceId}">${d.label||'Камера'}</option>`).join('') || '<option>Камера не найдена</option>';
-    selMic.innerHTML = mics.map(d=>`<option value="${d.deviceId}">${d.label||'Микрофон'}</option>`).join('') || '<option>Микрофон не найден</option>';
-}
-
-async function requestPerms(){
-    // Явно просим разрешение, чтобы появились названия устройств
-    try{
-        const tmp = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
-        tmp.getTracks().forEach(t=>t.stop());
-    }catch(e){
-        // даже если отказали — покажем причину
-        console.warn('perm probe', e);
-        if(e.name==='NotAllowedError'){ setStatus('Разреши доступ в настройках сайта, затем заново.'); }
-    }
-    await listDevices();
-}
-
-// Авто при открытии: запросить разрешения и заполнить селекты
-document.addEventListener('DOMContentLoaded', async ()=>{
-    await requestPerms();
-    await initLocal().catch(()=>{ /* статус уже показан */ });
-    if(localStream){ createPeer(); subscribeEcho(); }
-});
-
-// Кнопки/селекты
-btnPerms.addEventListener('click', requestPerms);
-selCam.addEventListener('change', ()=>initLocal());
-selMic.addEventListener('change', ()=>initLocal());

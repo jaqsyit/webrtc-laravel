@@ -7,28 +7,7 @@
     <meta name="peer-id" content="{{ $peerId }}">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Видео-звонок с {{ $peer->name }}</title>
-    <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
-    <script>
-        (async function(){
-            const vLocal = document.getElementById('local');
-            const vRemote = document.getElementById('remote');
-
-            try {
-                const s = await navigator.mediaDevices.getUserMedia({video:true,audio:true});
-                vLocal.srcObject = s;
-
-                const p1 = new SimplePeer({ initiator:true, trickle:false, stream:s });
-                const p2 = new SimplePeer({ initiator:false, trickle:false });
-
-                p1.on('signal', d => p2.signal(d));
-                p2.on('signal', d => p1.signal(d));
-                p2.on('stream', rs => vRemote.srcObject = rs);
-            } catch(e) {
-                console.error(e);
-                alert('Ошибка: ' + e.name + '. Проверь разрешения/устройства. Для IP/домена нужен HTTPS.');
-            }
-        })();
-    </script>
+    @vite(['resources/js/app.js','resources/js/call.js']) {{-- app.js включает Echo --}}
     <style>
         body{font-family: system-ui,Arial; margin:0; padding:16px; background:#0b0f14; color:#e7edf3}
         .grid{display:grid; gap:12px; grid-template-columns:1fr 1fr}
@@ -46,19 +25,15 @@
 <div class="grid" style="margin-top:12px">
     <div>
         <div style="margin-bottom:6px">Вы</div>
-        <video id="local" autoplay playsinline muted style="width:48%"></video>
+        <video id="local" autoplay playsinline muted></video>
     </div>
     <div>
         <div style="margin-bottom:6px">Собеседник</div>
-        <video id="remote" autoplay playsinline style="width:48%"></video>
+        <video id="remote" autoplay playsinline></video>
     </div>
-    <script type="module" src="{{ Vite::asset('resources/js/simplepeer-test.js') }}"></script>
 </div>
 
 <div class="controls" style="margin-top:12px">
-    <button id="btnPerms">Разрешить камеру/микрофон</button>
-    <select id="selCam"></select>
-    <select id="selMic"></select>
     <button id="btnInit">Инициализировать</button>
     <button id="btnCall" disabled>Позвонить</button>
     <button id="btnAnswer" disabled>Ответить</button>
@@ -71,3 +46,4 @@
 <div id="status" class="pill" style="margin-top:8px">Статус: готов</div>
 </body>
 </html>
+
