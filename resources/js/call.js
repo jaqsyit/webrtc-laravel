@@ -58,15 +58,11 @@ async function getLocalStream(){
         setStatus('Нужен HTTPS для камеры/мика'); alert('Включи HTTPS на домене.'); return;
     }
 
-    const constraints = { audio: true, video: false };
-    console.log("Запрашиваем медиа с constraints", constraints);
+    const constraints = { audio: true, video: { width: 1280, height: 720 } };
 
     try{
-        console.log("Ожидаем разрешения…");
         const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-        console.log("Разрешение получено");
         localStream = mediaStream;
-        console.log("Получен локальный медиа-поток", mediaStream);
 
         if (elLocal) {
             elLocal.muted = true; // чтобы не слышать себя
