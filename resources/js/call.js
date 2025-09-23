@@ -1,4 +1,4 @@
-// Требование: window.Echo настроен (broadcaster: 'reverb') и в Blade есть
+// Требование: window.Echo настроен (broadcaster: 'reverb'), в Blade есть
 // <meta name="csrf-token">, <meta name="user-id">, <meta name="peer-id">
 
 const $ = (s) => document.querySelector(s);
@@ -6,31 +6,24 @@ const csrf   = document.querySelector('meta[name="csrf-token"]')?.content || '';
 const me     = Number(document.querySelector('meta[name="user-id"]')?.content || 0);
 const peerId = Number(document.querySelector('meta[name="peer-id"]')?.content || 0);
 
-const elLocal  = $("#local");
-const elRemote = $("#remote");
+const elLocalAudio  = $("#localAudio");
+const elRemoteAudio = $("#remoteAudio");
 const statusEl = $("#status");
 const btnInit  = $("#btnInit");
 const btnCall  = $("#btnCall");
 const btnAnswer= $("#btnAnswer");
 const btnHangup= $("#btnHangup");
 const btnMic   = $("#btnMic");
-const btnCam   = $("#btnCam");
-const btnShare = $("#btnShare");
 
 let pc = null;
 let localStream = null;
 let remoteStream = null;
-let screenTrack = null;
 let micEnabled = true;
-let camEnabled = true;
-let echoChannel = null; // объект канала Echo
 let subscribed = false;
 
 const rtcConfig = {
-    iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        // В проде ОБЯЗАТЕЛЬНО добавьте TURN
-    ]
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    // В проде добавь TURN
 };
 
 function setStatus(t){ if(statusEl) statusEl.textContent = "Статус: " + t; }
@@ -42,95 +35,64 @@ function enableControls(init = false){
     btnAnswer.disabled= !init;
     btnHangup.disabled= !init;
     btnMic.disabled   = !init;
-    btnCam.disabled   = !init;
-    btnShare.disabled = !init;
     if (btnMic) btnMic.textContent = "Микрофон выкл";
-    if (btnCam) btnCam.textContent = "Камера выкл";
-    if (btnShare) btnShare.textContent = "Шэр экрана";
 }
 
 async function postJSON(url, body){
     return fetch(url, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": csrf,
-            "X-Requested-With": "XMLHttpRequest"
-        },
-        body: JSON.stringify(body)
+        headers: {"Content-Type":"application/json","X-CSRF-TOKEN":csrf,"X-Requested-With":"XMLHttpRequest"},
+        body: JSON.stringify(body),
     });
 }
 
-function sdpToJSON(desc){
-    if (!desc) return null;
-    return { type: desc.type, sdp: desc.sdp };
-}
+function sdpToJSON(desc){ return desc ? { type: desc.type, sdp: desc.sdp } : null; }
 
-console.log('call.js loaded, secureContext=', window.isSecureContext);
-
-// Перед getUserMedia — быстрый тест заголовка Permissions-Policy (по желанию)
-fetch(location.href, { method: 'HEAD' })
-    .then(r => console.log('Permissions-Policy:', r.headers.get('permissions-policy')))
-    .catch(()=>{});
-
-// ↓ заменяем initLocal на более «говорящий»
-async function initLocal(){
+// ======== ТВОЙ ВАРИАНТ: только аудио ========
+async function getLocalStream(){
+    // HTTPS обязателен, кроме localhost/127.0.0.1
     if (location.protocol !== 'https:' &&
         !['localhost','127.0.0.1'].includes(location.hostname)) {
-        setStatus('Нужен HTTPS для запроса камеры/микрофона');
+        setStatus('Нужен HTTPS для микрофона');
         alert('Включите HTTPS на домене.');
         return;
     }
 
     try{
-        if (elLocal) elLocal.muted = true; // автоплей локального
-        // Запрашиваем ТОЛЬКО по клику на кнопку (user gesture)
-        const constraints = { video: true, audio: true };
-        console.log('Requesting getUserMedia...', constraints);
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        elLocal.srcObject = localStream;
-        setStatus('камера/микрофон готовы');
-        enableControls(true);
-    }catch(e){
-        console.error('getUserMedia error:', e.name, e.message);
-        setStatus('ошибка доступа: ' + e.name);
-        // Подсказки по частым ошибкам
-        if (e.name === 'NotAllowedError') {
-            alert('Доступ запрещён. Проверьте разрешения сайта (иконка замка) и Windows Privacy.');
-        } else if (e.name === 'NotFoundError') {
-            alert('Устройства не найдены. Подключите камеру/микрофон.');
-        } else if (e.name === 'NotReadableError') {
-            alert('Устройство занято другой программой. Закройте Zoom/Teams/OBS и повторите.');
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: true });
+        localStream = stream;
+        if (elLocalAudio) {
+            // чтобы не слышать себя — заглушаем
+            elLocalAudio.srcObject = stream;
+            elLocalAudio.muted = true;
+            elLocalAudio.autoplay = true;
+            elLocalAudio.volume = 0;
         }
-        throw e;
+        setStatus("микрофон готов");
+        enableControls(true);
+    }catch(err){
+        console.error('getUserMedia error:', err);
+        setStatus('ошибка доступа: ' + (err.name || err.message));
+        if (err.name === 'NotAllowedError') alert('Доступ запрещён. Разреши микрофон в настройках сайта.');
+        if (err.name === 'NotFoundError')   alert('Микрофон не найден.');
+        throw err;
     }
 }
 
-btnInit?.addEventListener('click', async () => {
-    await initLocal();
-    if (!localStream) return;
-    createPeer();
-    subscribeEcho();
-});
-
 function createPeer(){
     if(pc) try{ pc.close(); }catch{}
-
     pc = new RTCPeerConnection(rtcConfig);
 
-    // Локальные треки
-    if (localStream){
-        localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-    }
+    // Локальные АУДИО-треки
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
-    // Входящие треки
+    // Приходящий удалённый аудио-поток
     remoteStream = new MediaStream();
-    if (elRemote) elRemote.srcObject = remoteStream;
+    if (elRemoteAudio) elRemoteAudio.srcObject = remoteStream;
     pc.ontrack = (ev) => {
         ev.streams[0]?.getTracks().forEach(t => remoteStream.addTrack(t));
     };
 
-    // Кандидаты наружу
     pc.onicecandidate = (ev) => {
         if(ev.candidate){
             postJSON("/call/candidate", { to: peerId, candidate: ev.candidate })
@@ -150,9 +112,7 @@ function createPeer(){
 function subscribeEcho(){
     if (subscribed || !window.Echo || !me) return;
 
-    echoChannel = window.Echo.private('call.' + me);
-
-    echoChannel
+    window.Echo.private('call.' + me)
         .listen('.call.offer', async (e) => {
             setStatus("получен OFFER от " + e.from);
             await ensureReady();
@@ -167,25 +127,22 @@ function subscribeEcho(){
             await pc.setRemoteDescription(new RTCSessionDescription(e.sdp));
         })
         .listen('.call.candidate', async (e) => {
-            try{
-                await pc.addIceCandidate(new RTCIceCandidate(e.candidate));
-            }catch(err){
-                console.warn("addIceCandidate error", err);
-            }
+            try{ await pc.addIceCandidate(new RTCIceCandidate(e.candidate)); }
+            catch(err){ console.warn("addIceCandidate error", err); }
         });
 
     subscribed = true;
 }
 
 async function ensureReady(){
-    if(!localStream) await initLocal();
+    if(!localStream) await getLocalStream();
     if(!pc) createPeer();
     if(!subscribed) subscribeEcho();
 }
 
 async function startCall(){
     await ensureReady();
-    const offer = await pc.createOffer({ offerToReceiveAudio:true, offerToReceiveVideo:true });
+    const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
     await pc.setLocalDescription(offer);
     await postJSON("/call/offer", { to: peerId, sdp: sdpToJSON(pc.localDescription) });
     setStatus("OFFER отправлен");
@@ -196,20 +153,7 @@ async function answerManually(){
     setStatus("готов к ответу (ждём OFFER)");
 }
 
-function leaveEcho(){
-    try{
-        if (window.Echo && subscribed){
-            window.Echo.leave('private-call.' + me); // совместимость
-            window.Echo.leave('call.' + me);
-        }
-    }catch{}
-    subscribed = false;
-    echoChannel = null;
-}
-
 function hangup(){
-    if(screenTrack){ try{ screenTrack.stop(); }catch{} screenTrack = null; }
-
     if(pc){
         try{
             pc.getSenders().forEach(s => s.track && s.track.stop());
@@ -219,17 +163,25 @@ function hangup(){
         }catch{}
         pc = null;
     }
-
     if(localStream){ try{ localStream.getTracks().forEach(t => t.stop()); }catch{} localStream = null; }
     if(remoteStream){ try{ remoteStream.getTracks().forEach(t => t.stop()); }catch{} remoteStream = null; }
 
-    if (elLocal)  elLocal.srcObject  = null;
-    if (elRemote) elRemote.srcObject = null;
+    if (elLocalAudio)  elLocalAudio.srcObject  = null;
+    if (elRemoteAudio) elRemoteAudio.srcObject = null;
 
-    leaveEcho();
+    try{
+        if (window.Echo) {
+            window.Echo.leave('call.' + me);
+            window.Echo.leave('private-call.' + me);
+        }
+    }catch{}
+
     setStatus("вызов завершён");
-    enableControls(false);
-    if (btnInit) btnInit.disabled = false;
+    if(btnInit) btnInit.disabled = false;
+    if(btnCall) btnCall.disabled = true;
+    if(btnAnswer) btnAnswer.disabled = true;
+    if(btnHangup) btnHangup.disabled = true;
+    if(btnMic) btnMic.disabled = true;
 }
 
 function toggleMic(){
@@ -238,76 +190,21 @@ function toggleMic(){
     if (btnMic) btnMic.textContent = micEnabled ? "Микрофон выкл" : "Микрофон вкл";
 }
 
-function toggleCam(){
-    camEnabled = !camEnabled;
-    localStream?.getVideoTracks().forEach(t => t.enabled = camEnabled);
-    if (btnCam) btnCam.textContent = camEnabled ? "Камера выкл" : "Камера вкл";
-}
-
-async function shareScreen(){
-    if(!pc) return;
-    const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
-
-    if(screenTrack){
-        // вернуть камеру
-        const camTrack = localStream?.getVideoTracks()?.[0];
-        if(sender && camTrack){
-            await sender.replaceTrack(camTrack);
-        } else if (camTrack){
-            pc.addTrack(camTrack, localStream);
-        }
-        try{ screenTrack.stop(); }catch{}
-        screenTrack = null;
-        if (btnShare) btnShare.textContent = "Шэр экрана";
-        return;
-    }
-
-    try{
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:false });
-        screenTrack = screenStream.getVideoTracks()[0];
-        if(sender){
-            await sender.replaceTrack(screenTrack);
-        }else{
-            pc.addTrack(screenTrack, screenStream);
-        }
-        if (btnShare) btnShare.textContent = "Стоп шэр";
-        screenTrack.onended = async () => {
-            const camTrack = localStream?.getVideoTracks()?.[0];
-            if(sender && camTrack){
-                await sender.replaceTrack(camTrack);
-            }
-            screenTrack = null;
-            if (btnShare) btnShare.textContent = "Шэр экрана";
-        };
-    }catch(e){
-        console.warn("share error", e);
-    }
-}
-
 // Кнопки
 btnInit?.addEventListener("click", async ()=>{
-    try{
-        await initLocal();
-        createPeer();
-        subscribeEcho();
-        if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1'){
-            setStatus("внимание: нужен HTTPS для камеры/мика и WSS для сокетов");
-        }
-    }catch{}
+    await getLocalStream();        // ← твой вызов (только аудио)
+    if (!localStream) return;
+    createPeer();
+    subscribeEcho();
 });
+
 btnCall?.addEventListener("click", startCall);
 btnAnswer?.addEventListener("click", answerManually);
 btnHangup?.addEventListener("click", hangup);
 btnMic?.addEventListener("click", toggleMic);
-btnCam?.addEventListener("click", toggleCam);
-btnShare?.addEventListener("click", shareScreen);
 
-// Завершать при закрытии вкладки
-window.addEventListener("beforeunload", () => {
-    try{ hangup(); }catch{}
-});
+// Аварийное завершение при закрытии вкладки
+window.addEventListener("beforeunload", () => { try{ hangup(); }catch{} });
 
-// Авто-статус
-document.addEventListener("DOMContentLoaded", ()=>{
-    setStatus("готов");
-});
+// Статус при загрузке
+document.addEventListener("DOMContentLoaded", ()=> setStatus("готов"));

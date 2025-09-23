@@ -26,10 +26,14 @@
     <div>
         <div style="margin-bottom:6px">Вы</div>
         <video id="local" autoplay playsinline muted></video>
+        <audio id="localAudio" autoplay muted></audio>
+
     </div>
     <div>
         <div style="margin-bottom:6px">Собеседник</div>
         <video id="remote" autoplay playsinline></video>
+        <audio id="remoteAudio" autoplay></audio>
+
     </div>
 </div>
 
