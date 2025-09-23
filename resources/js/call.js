@@ -66,21 +66,52 @@ function sdpToJSON(desc){
     return { type: desc.type, sdp: desc.sdp };
 }
 
+console.log('call.js loaded, secureContext=', window.isSecureContext);
+
+// Перед getUserMedia — быстрый тест заголовка Permissions-Policy (по желанию)
+fetch(location.href, { method: 'HEAD' })
+    .then(r => console.log('Permissions-Policy:', r.headers.get('permissions-policy')))
+    .catch(()=>{});
+
+// ↓ заменяем initLocal на более «говорящий»
 async function initLocal(){
-    if(localStream) return;
+    if (location.protocol !== 'https:' &&
+        !['localhost','127.0.0.1'].includes(location.hostname)) {
+        setStatus('Нужен HTTPS для запроса камеры/микрофона');
+        alert('Включите HTTPS на домене.');
+        return;
+    }
+
     try{
-        if (elLocal) elLocal.muted = true; // автоплей без клика
+        if (elLocal) elLocal.muted = true; // автоплей локального
+        // Запрашиваем ТОЛЬКО по клику на кнопку (user gesture)
         const constraints = { video: true, audio: true };
+        console.log('Requesting getUserMedia...', constraints);
         localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        if (elLocal) elLocal.srcObject = localStream;
-        setStatus("камера/микрофон готовы");
+        elLocal.srcObject = localStream;
+        setStatus('камера/микрофон готовы');
         enableControls(true);
     }catch(e){
-        console.error(e);
-        setStatus("ошибка доступа к камере/микрофону (" + (e.name||e.message) + ")");
+        console.error('getUserMedia error:', e.name, e.message);
+        setStatus('ошибка доступа: ' + e.name);
+        // Подсказки по частым ошибкам
+        if (e.name === 'NotAllowedError') {
+            alert('Доступ запрещён. Проверьте разрешения сайта (иконка замка) и Windows Privacy.');
+        } else if (e.name === 'NotFoundError') {
+            alert('Устройства не найдены. Подключите камеру/микрофон.');
+        } else if (e.name === 'NotReadableError') {
+            alert('Устройство занято другой программой. Закройте Zoom/Teams/OBS и повторите.');
+        }
         throw e;
     }
 }
+
+btnInit?.addEventListener('click', async () => {
+    await initLocal();
+    if (!localStream) return;
+    createPeer();
+    subscribeEcho();
+});
 
 function createPeer(){
     if(pc) try{ pc.close(); }catch{}
