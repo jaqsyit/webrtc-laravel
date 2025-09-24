@@ -16,10 +16,18 @@ window.Pusher = Pusher;
 window.Echo = new Echo({
     broadcaster: 'reverb',
     key: import.meta.env.VITE_REVERB_APP_KEY,
-    wsHost: import.meta.env.VITE_REVERB_HOST,   // ДОМЕН, НЕ 127.0.0.1
-    wsPort: import.meta.env.VITE_REVERB_PORT ?? 443,
-    wssPort: import.meta.env.VITE_REVERB_PORT ?? 443,
+    wsHost: import.meta.env.VITE_REVERB_HOST,
+    wsPort: import.meta.env.VITE_REVERB_PORT,
+    wssPort: import.meta.env.VITE_REVERB_PORT,
     forceTLS: true,
-    enabledTransports: ['wss'],                  // на проде только WSS
-    // wsPath: import.meta.env.VITE_REVERB_PATH ?? '/app', // если меняли путь
+    enabledTransports: ['wss'],
+
+    // ВАЖНО: явный заголовок для /broadcasting/auth
+    authEndpoint: '/broadcasting/auth',
+    auth: {
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    },
 });
