@@ -14,9 +14,9 @@ import Pusher from 'pusher-js';
 window.Pusher = Pusher;
 
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-const reverbHost = import.meta.env.VITE_REVERB_HOST || window.location.hostname;
-const reverbPort = Number(import.meta.env.VITE_REVERB_PORT || 8081);
-const reverbScheme = import.meta.env.VITE_REVERB_SCHEME || (window.location.protocol === 'https:' ? 'https' : 'http');
+const reverbHost = import.meta.env.VITE_REVERB_HOST;
+const reverbPort = Number(import.meta.env.VITE_REVERB_PORT || 443);
+const reverbScheme = import.meta.env.VITE_REVERB_SCHEME || 'https';
 const useTls = reverbScheme === 'https';
 
 window.Echo = new Echo({
@@ -26,7 +26,7 @@ window.Echo = new Echo({
     wsPort: reverbPort,
     wssPort: reverbPort,
     forceTLS: useTls,
-    enabledTransports: ['ws', 'wss'],
+    enabledTransports: useTls ? ['wss'] : ['ws', 'wss'],
 
     authEndpoint: '/broadcasting/auth',
     auth: {

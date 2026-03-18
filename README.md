@@ -69,6 +69,12 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 - WebRTC-звонки через Laravel Reverb / Echo;
 - обмен `offer`, `answer` и `ICE candidate` через приватные каналы `call.{userId}`.
 
+## Reverb ports
+
+- внутренний порт процесса Reverb: `8081`
+- внешний публичный websocket endpoint: `wss://webrtc.atomozen.kz:9090`
+- браузерный Echo-клиент должен подключаться к `9090`, а не к `8081`
+
 ## Quick start
 
 1. Установите зависимости PHP и JS.
