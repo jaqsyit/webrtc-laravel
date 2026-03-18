@@ -59,3 +59,46 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## WebRTC chat and calls
+
+Этот проект теперь включает:
+
+- страницу `dashboard` с кнопкой перехода в контакты;
+- страницу `contacts` в стиле мессенджера;
+- WebRTC-звонки через Laravel Reverb / Echo;
+- обмен `offer`, `answer` и `ICE candidate` через приватные каналы `call.{userId}`.
+
+## Quick start
+
+1. Установите зависимости PHP и JS.
+2. Поднимите Laravel-приложение.
+3. Поднимите Vite.
+4. Поднимите Reverb.
+5. Откройте приложение в двух разных аккаунтах и начните звонок.
+
+### Commands
+
+```bash
+composer install
+npm install
+php artisan migrate
+php artisan serve
+npm run dev
+php artisan reverb:start
+```
+
+## How to test calls locally
+
+1. Войдите под двумя разными пользователями.
+2. Откройте `dashboard` и перейдите в `Контакты`.
+3. Выберите собеседника и нажмите `Позвонить`.
+4. На странице звонка нажмите `Инициализировать`.
+5. На одной стороне нажмите `Позвонить`, на другой — `Ответить`.
+
+## Troubleshooting
+
+- Если камера и микрофон не открываются, используйте `localhost` или `127.0.0.1`, либо HTTPS.
+- Если не приходит сигналинг, убедитесь, что запущен `php artisan reverb:start`.
+- Если интерфейс загрузился, но в разных сетях нет медиа, добавьте TURN-сервер в `resources/js/call.js`.
+- После изменения Vite-переменных из `.env` перезапустите `npm run dev`.

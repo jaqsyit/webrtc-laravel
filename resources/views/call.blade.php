@@ -10,17 +10,23 @@
     @vite('resources/js/app.js')
     <style>
         body{font-family: system-ui,Arial; margin:0; padding:16px; background:#0b0f14; color:#e7edf3}
+        .header{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap}
         .grid{display:grid; gap:12px; grid-template-columns:1fr 1fr}
         video{width:100%; aspect-ratio:16/9; background:#111; border-radius:12px}
         .controls{display:flex; gap:8px; flex-wrap:wrap}
-        button,select{padding:10px 14px; border-radius:10px; border:0; background:#1c2430; color:#e7edf3; cursor:pointer}
+        button,select,.link-btn{padding:10px 14px; border-radius:10px; border:0; background:#1c2430; color:#e7edf3; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center}
         button[disabled]{opacity:.5; cursor:not-allowed}
         .pill{padding:6px 10px; background:#15202b; border-radius:999px; font-size:12px; opacity:.9}
     </style>
 </head>
 <body>
-<h3>Звонок: вы → {{ $peer->name }}</h3>
-<div class="pill">Подсказка: на localhost (или 127.0.0.1) getUserMedia работает без HTTPS.</div>
+<div class="header">
+    <div>
+        <h3 style="margin:0 0 8px">Звонок: вы → {{ $peer->name }}</h3>
+        <div class="pill">Подсказка: на localhost (или 127.0.0.1) getUserMedia работает без HTTPS.</div>
+    </div>
+    <a class="link-btn" href="{{ route('contacts.index', ['peer' => $peer->id]) }}">← Назад к контактам</a>
+</div>
 
 <div class="grid" style="margin-top:12px">
     <div>

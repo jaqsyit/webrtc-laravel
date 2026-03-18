@@ -13,21 +13,26 @@ import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 window.Pusher = Pusher;
 
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+const reverbHost = import.meta.env.VITE_REVERB_HOST || window.location.hostname;
+const reverbPort = Number(import.meta.env.VITE_REVERB_PORT || 8081);
+const reverbScheme = import.meta.env.VITE_REVERB_SCHEME || (window.location.protocol === 'https:' ? 'https' : 'http');
+const useTls = reverbScheme === 'https';
+
 window.Echo = new Echo({
     broadcaster: 'reverb',
     key: import.meta.env.VITE_REVERB_APP_KEY,
-    wsHost: import.meta.env.VITE_REVERB_HOST,
-    wsPort: import.meta.env.VITE_REVERB_PORT,
-    wssPort: import.meta.env.VITE_REVERB_PORT,
-    forceTLS: true,
-    enabledTransports: ['wss'],
+    wsHost: reverbHost,
+    wsPort: reverbPort,
+    wssPort: reverbPort,
+    forceTLS: useTls,
+    enabledTransports: ['ws', 'wss'],
 
-    // ВАЖНО: явный заголовок для /broadcasting/auth
     authEndpoint: '/broadcasting/auth',
     auth: {
         headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'X-CSRF-TOKEN': csrfToken,
             'X-Requested-With': 'XMLHttpRequest',
-        }
+        },
     },
 });

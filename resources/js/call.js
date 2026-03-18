@@ -10,6 +10,8 @@ const peerId = Number(document.querySelector('meta[name="peer-id"]')?.content ||
 
 const elLocal  = $("#local");
 const elRemote = $("#remote");
+const elLocalAudio = $("#localAudio");
+const elRemoteAudio = $("#remoteAudio");
 const statusEl = $("#status");
 const btnInit  = $("#btnInit");
 const btnCall  = $("#btnCall");
@@ -17,13 +19,13 @@ const btnAnswer= $("#btnAnswer");
 const btnHangup= $("#btnHangup");
 const btnMic   = $("#btnMic");
 const btnCam   = $("#btnCam");
+const btnShare = $("#btnShare");
 
 let pc = null;
 let localStream = null;
 let remoteStream = null;
-
-let micEnabled = true;
-let camEnabled = true;
+let originalVideoTrack = null;
+let screenShareActive = false;
 
 let subscribed = false;
 let inCall = false;
@@ -52,21 +54,39 @@ function normalizeSDP(x){
     return x; // на всякий
 }
 async function postJSON(url, body){
-    return fetch(url, {
+    const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type":"application/json", "X-CSRF-TOKEN": csrf, "X-Requested-With":"XMLHttpRequest" },
+        credentials: 'same-origin',
         body: JSON.stringify(body)
     });
+
+    if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Request failed: ${response.status}`);
+    }
+
+    return response;
 }
 
 function enableControls(init = false){
     if(!btnInit) return;
-    btnInit.disabled  = true;
-    btnCall && (btnCall.disabled   = !init);
-    btnAnswer && (btnAnswer.disabled = true); // включим при входящем OFFER
-    btnHangup && (btnHangup.disabled = !init);
-    btnMic && (btnMic.disabled   = !init, btnMic.textContent = "Микрофон выкл");
-    btnCam && (btnCam.disabled   = !init, btnCam.textContent = "Камера выкл");
+    btnInit.disabled = true;
+    if (btnCall) btnCall.disabled = !init;
+    if (btnAnswer) btnAnswer.disabled = true;
+    if (btnHangup) btnHangup.disabled = !init;
+    if (btnMic) {
+        btnMic.disabled = !init;
+        btnMic.textContent = "Микрофон выкл";
+    }
+    if (btnCam) {
+        btnCam.disabled = !init;
+        btnCam.textContent = "Камера выкл";
+    }
+    if (btnShare) {
+        btnShare.disabled = !init;
+        btnShare.textContent = 'Шэр экрана';
+    }
 }
 
 // ===== медиа =====
@@ -85,6 +105,12 @@ async function getLocalStream(){
         elLocal.srcObject = stream;
         elLocal.onloadedmetadata = () => { elLocal.play?.(); };
     }
+    if (elLocalAudio) {
+        elLocalAudio.muted = true;
+        elLocalAudio.srcObject = stream;
+        elLocalAudio.onloadedmetadata = () => { elLocalAudio.play?.().catch(() => {}); };
+    }
+    originalVideoTrack = stream.getVideoTracks()[0] || null;
     setStatus("камера/микрофон готовы");
     enableControls(true);
 }
@@ -106,8 +132,17 @@ function createPeer(){
         elRemote.srcObject = remoteStream;
         elRemote.onloadedmetadata = () => { elRemote.play?.(); };
     }
+    if (elRemoteAudio) {
+        elRemoteAudio.srcObject = remoteStream;
+        elRemoteAudio.onloadedmetadata = () => { elRemoteAudio.play?.().catch(() => {}); };
+    }
     pc.ontrack = (ev) => {
-        ev.streams[0]?.getTracks().forEach(t => remoteStream.addTrack(t));
+        ev.streams[0]?.getTracks().forEach(t => {
+            const exists = remoteStream.getTracks().some(track => track.id === t.id);
+            if (!exists) remoteStream.addTrack(t);
+        });
+        elRemote?.play?.().catch(() => {});
+        elRemoteAudio?.play?.().catch(() => {});
     };
 
     // исходящие ICE — только когда можно
@@ -162,6 +197,7 @@ function subscribeEcho(){
         })
         // входящий ANSWER => завершаем соединение
         .listen('.call.answer', async (e) => {
+            if (!pc) return;
             setStatus("получен ANSWER");
             await pc.setRemoteDescription(new RTCSessionDescription(normalizeSDP(e.sdp)));
             await flushRemoteCandidates();
@@ -170,7 +206,7 @@ function subscribeEcho(){
         })
         // входящие ICE
         .listen('.call.candidate', async (e) => {
-            if (!pc) return;
+            if (!pc || !e?.candidate) return;
             const cand = new RTCIceCandidate(e.candidate);
             if (pc.remoteDescription) {
                 try { await pc.addIceCandidate(cand); } catch (err){ console.warn("addIceCandidate error", err); }
@@ -256,6 +292,7 @@ function hangup(){
     incomingFrom = null;
     inCall = false;
     remoteCandQueue = [];
+    screenShareActive = false;
 
     if(pc){
         try{
@@ -264,15 +301,23 @@ function hangup(){
         }catch{}
         pc = null;
     }
+    const shouldStopOriginalTrack = !!originalVideoTrack && !localStream?.getTracks().some((track) => track.id === originalVideoTrack.id);
     if(localStream){ try{ localStream.getTracks().forEach(t => t.stop()); }catch{} localStream = null; }
+    if (shouldStopOriginalTrack) {
+        try { originalVideoTrack.stop(); } catch {}
+    }
     if(remoteStream){ try{ remoteStream.getTracks().forEach(t => t.stop()); }catch{} remoteStream = null; }
+    originalVideoTrack = null;
 
     if (elLocal)  elLocal.srcObject  = null;
     if (elRemote) elRemote.srcObject = null;
+    if (elLocalAudio) elLocalAudio.srcObject = null;
+    if (elRemoteAudio) elRemoteAudio.srcObject = null;
 
     try{
         if (window.Echo) { window.Echo.leave('call.' + me); window.Echo.leave('private-call.' + me); }
     }catch{}
+    subscribed = false;
 
     setStatus("вызов завершён");
     btnInit  && (btnInit.disabled  = false);
@@ -281,17 +326,53 @@ function hangup(){
     btnHangup&& (btnHangup.disabled= true);
     btnMic   && (btnMic.disabled   = true);
     btnCam   && (btnCam.disabled   = true);
+    if (btnShare) {
+        btnShare.disabled = true;
+        btnShare.textContent = 'Шэр экрана';
+    }
 }
 
-function toggleMic(){
-    micEnabled = !micEnabled;
-    localStream?.getAudioTracks().forEach(t => t.enabled = micEnabled);
-    if (btnMic) btnMic.textContent = micEnabled ? "Микрофон выкл" : "Микрофон вкл";
-}
-function toggleCam(){
-    camEnabled = !camEnabled;
-    localStream?.getVideoTracks().forEach(t => t.enabled = camEnabled);
-    if (btnCam) btnCam.textContent = camEnabled ? "Камера выкл" : "Камера вкл";
+async function toggleScreenShare(){
+    if (!localStream || !pc) return;
+
+    const sender = pc.getSenders().find((item) => item.track?.kind === 'video');
+    if (!sender) return;
+
+    if (!screenShareActive) {
+        const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        const displayTrack = displayStream.getVideoTracks()[0];
+        if (!displayTrack) return;
+
+        displayTrack.onended = () => {
+            if (screenShareActive) {
+                toggleScreenShare().catch((error) => console.warn('screen share reset failed', error));
+            }
+        };
+
+        const currentTrack = localStream.getVideoTracks()[0];
+        await sender.replaceTrack(displayTrack);
+        if (currentTrack) localStream.removeTrack(currentTrack);
+        localStream.addTrack(displayTrack);
+        if (elLocal) elLocal.srcObject = localStream;
+        screenShareActive = true;
+        if (btnShare) btnShare.textContent = 'Остановить шаринг';
+        return;
+    }
+
+    if (!originalVideoTrack) return;
+
+    const activeTrack = localStream.getVideoTracks()[0];
+    await sender.replaceTrack(originalVideoTrack);
+    if (activeTrack && activeTrack.id !== originalVideoTrack.id) {
+        localStream.removeTrack(activeTrack);
+        activeTrack.stop();
+    }
+    if (!localStream.getVideoTracks().some((track) => track.id === originalVideoTrack.id)) {
+        localStream.addTrack(originalVideoTrack);
+    }
+    if (elLocal) elLocal.srcObject = localStream;
+    screenShareActive = false;
+    if (btnShare) btnShare.textContent = 'Шэр экрана';
 }
 
 // привязки
@@ -301,13 +382,35 @@ btnInit?.addEventListener("click", async ()=>{
         if (!localStream) return;
         createPeer();
         subscribeEcho();
-    }catch{}
+    }catch(error){
+        console.warn('init failed', error);
+        setStatus('Не удалось инициализировать камеру/микрофон');
+    }
 });
-btnCall?.addEventListener("click", startCall);
-btnAnswer?.addEventListener("click", answerManually);
+btnCall?.addEventListener("click", () => {
+    startCall().catch((error) => {
+        console.warn('call start failed', error);
+        setStatus('Не удалось начать звонок');
+    });
+});
+btnAnswer?.addEventListener("click", () => {
+    answerManually().catch((error) => {
+        console.warn('answer failed', error);
+        setStatus('Не удалось ответить на звонок');
+    });
+});
 btnHangup?.addEventListener("click", hangup);
 btnMic?.addEventListener("click", toggleMic);
 btnCam?.addEventListener("click", toggleCam);
+btnShare?.addEventListener("click", () => {
+    toggleScreenShare().catch((error) => {
+        console.warn('screen share failed', error);
+        setStatus('Не удалось включить шаринг экрана');
+    });
+});
 
-document.addEventListener("DOMContentLoaded", ()=> setStatus("готов"));
+document.addEventListener("DOMContentLoaded", ()=> {
+    setStatus("готов");
+    subscribeEcho();
+});
 window.addEventListener("beforeunload", () => { try{ hangup(); }catch{} });
