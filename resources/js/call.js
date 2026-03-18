@@ -20,6 +20,7 @@ const btnHangup= $("#btnHangup");
 const btnMic   = $("#btnMic");
 const btnCam   = $("#btnCam");
 const btnShare = $("#btnShare");
+const incomingCallStorageKey = 'incoming-call';
 
 let pc = null;
 let localStream = null;
@@ -52,6 +53,28 @@ function normalizeSDP(x){
     if (typeof x.type === 'string' && typeof x.sdp === 'string') return x;
     if (x.sdp && typeof x.sdp.type === 'string') return x.sdp;
     return x; // на всякий
+}
+function restorePendingIncomingCall() {
+    try {
+        const raw = sessionStorage.getItem(incomingCallStorageKey);
+        if (!raw) return;
+
+        const payload = JSON.parse(raw);
+        if (!payload?.from || !payload?.sdp) return;
+        if (Number(payload.from) !== peerId) return;
+
+        pendingOffer = normalizeSDP(payload.sdp);
+        incomingFrom = Number(payload.from);
+        remoteCandQueue = [];
+
+        setStatus('Входящий звонок готов к ответу');
+        if (btnAnswer) btnAnswer.disabled = false;
+        if (btnCall) btnCall.disabled = true;
+
+        sessionStorage.removeItem(incomingCallStorageKey);
+    } catch (error) {
+        console.warn('failed to restore incoming call', error);
+    }
 }
 async function postJSON(url, body){
     const response = await fetch(url, {
@@ -191,6 +214,7 @@ function subscribeEcho(){
         .listen('.call.offer', async (e) => {
             pendingOffer = normalizeSDP(e.sdp);
             incomingFrom = e.from;
+            remoteCandQueue = [];
             setStatus("Входящий звонок от " + e.from);
             btnAnswer && (btnAnswer.disabled = false);
             btnCall && (btnCall.disabled = true);
@@ -412,5 +436,6 @@ btnShare?.addEventListener("click", () => {
 document.addEventListener("DOMContentLoaded", ()=> {
     setStatus("готов");
     subscribeEcho();
+    restorePendingIncomingCall();
 });
 window.addEventListener("beforeunload", () => { try{ hangup(); }catch{} });

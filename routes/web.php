@@ -1,5 +1,8 @@
 <?php
 
+use App\Events\CallAnswerSent;
+use App\Events\CallOfferSent;
+use App\Events\IceCandidateSent;
 use App\Http\Controllers\ProfileController;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -27,7 +30,7 @@ Route::post('/call/offer', function (Request $r) {
         'sdp' => ['required', 'array'],
     ]);
 
-    broadcast(new \App\Events\CallOfferSent($payload['to'], auth()->id(), $payload['sdp']));
+    event(new CallOfferSent($payload['to'], auth()->id(), $payload['sdp']));
 
     return response()->noContent();
 })->middleware('auth')->name('call.offer');
@@ -38,7 +41,7 @@ Route::post('/call/answer', function (Request $r) {
         'sdp' => ['required', 'array'],
     ]);
 
-    broadcast(new \App\Events\CallAnswerSent($payload['to'], auth()->id(), $payload['sdp']));
+    event(new CallAnswerSent($payload['to'], auth()->id(), $payload['sdp']));
 
     return response()->noContent();
 })->middleware('auth')->name('call.answer');
@@ -49,7 +52,7 @@ Route::post('/call/candidate', function (Request $r) {
         'candidate' => ['required', 'array'],
     ]);
 
-    broadcast(new \App\Events\IceCandidateSent($payload['to'], auth()->id(), $payload['candidate']));
+    event(new IceCandidateSent($payload['to'], auth()->id(), $payload['candidate']));
 
     return response()->noContent();
 })->middleware('auth')->name('call.candidate');
@@ -61,8 +64,9 @@ Route::middleware('auth')->get('/video/{peer}', function (User $peer) {
 Route::middleware('auth')->get('/contacts', function (Request $request) {
     $users = User::query()
         ->whereKeyNot(auth()->id())
-        ->orderBy('name')
-        ->get();
+        ->get()
+        ->sortBy('name')
+        ->values();
 
     $activePeer = $users->firstWhere('id', (int) $request->integer('peer')) ?? $users->first();
 

@@ -72,7 +72,8 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 ## Reverb ports
 
 - внутренний порт процесса Reverb: `8081`
-- внешний публичный websocket endpoint: `wss://webrtc.atomozen.kz:9090`
+- Laravel backend публикует события в Reverb через `127.0.0.1:8081`
+- внешний публичный websocket endpoint для браузера: `wss://webrtc.atomozen.kz:9090`
 - браузерный Echo-клиент должен подключаться к `9090`, а не к `8081`
 
 ## Quick start
