@@ -1,61 +1,402 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# WebRTC Chat
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel-проект для экспериментов с **видеозвонками через WebRTC** и **realtime-сигналингом через Laravel Reverb / Echo**.
 
-## About Laravel
+Сейчас репозиторий сочетает в себе две части:
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- стандартную основу **Laravel 12 + Breeze + Inertia + Vue 3** для аутентификации и личного кабинета;
+- заготовку сервиса видеозвонков, где браузеры обмениваются WebRTC-сигналами через приватные каналы Laravel Broadcasting.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+> Важно: проект находится в состоянии прототипа. Клиентская логика звонка уже есть, но часть серверной логики в исходниках ещё не доведена до конца. Ниже это отдельно отмечено.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## О чём проект
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Идея проекта — дать базу для приложения, где пользователи:
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+- регистрируются и входят в систему;
+- взаимодействуют в защищённой зоне приложения;
+- могут инициировать видеозвонок другому пользователю;
+- получают сигналы звонка в реальном времени через приватные каналы;
+- устанавливают прямое WebRTC-соединение между браузерами.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+По сути это стартовая платформа для дальнейшей разработки **видеочата / WebRTC-мессенджера** на Laravel.
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Что уже есть в проекте
 
-### Premium Partners
+### Базовая веб-часть
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+- регистрация и вход пользователей;
+- стандартные страницы Laravel Breeze / Inertia;
+- страница `dashboard`;
+- редактирование профиля пользователя;
+- тестовая SQLite-база в репозитории;
+- базовые feature-тесты для профиля и главной страницы.
 
-## Contributing
+### Realtime и видеозвонки
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+В проекте уже присутствуют основные части клиентского сценария звонка:
 
-## Code of Conduct
+- подключение `Laravel Echo` к `Reverb`;
+- приватный канал `call.{userId}` для доставки персональных событий;
+- получение локального аудио/видео через `getUserMedia`;
+- создание `RTCPeerConnection`;
+- формирование и отправка `offer`;
+- приём входящего звонка и ручной ответ `answer`;
+- обмен ICE-кандидатами;
+- отображение локального и удалённого видео;
+- завершение звонка;
+- включение/выключение микрофона;
+- включение/выключение камеры.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Подготовленные шаблоны интерфейса
 
-## Security Vulnerabilities
+В репозитории есть Blade-шаблоны:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+- `resources/views/contacts.blade.php` — список пользователей для звонка;
+- `resources/views/call.blade.php` — экран звонка;
+- `resources/js/call.js` — основная клиентская логика WebRTC.
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Текущий статус реализации
+
+Это важно понимать перед запуском.
+
+### Реально подтверждено по исходникам
+
+- Laravel 12
+- PHP 8.2+
+- Inertia.js + Vue 3
+- Vite
+- Laravel Breeze
+- Laravel Reverb
+- Laravel Echo
+- Pusher JS
+- WebRTC в браузере
+- STUN-сервер `stun:stun.l.google.com:19302`
+
+### Что выглядит незавершённым
+
+В исходниках найдены несколько пробелов:
+
+1. В `routes/web.php` есть только стандартные маршруты Breeze/Inertia.
+   - исходных маршрутов для `contacts`, `video/{id}`, `/call/offer`, `/call/answer`, `/call/candidate` сейчас нет;
+   - при этом фронтенд `resources/js/call.js` ожидает эти endpoint'ы.
+
+2. События вещания реализованы не полностью.
+   - `app/Events/CallOfferSent.php` уже оформлен как broadcast event;
+   - `app/Events/CallAnswerSent.php` и `app/Events/IceCandidateSent.php` пока похожи на стандартные заготовки и не содержат завершённой логики для текущего сценария звонков.
+
+3. В `.env.example` нет готового блока переменных для Reverb.
+   - но код в `config/broadcasting.php` и `resources/js/bootstrap.js` уже использует переменные `REVERB_*` и `VITE_REVERB_*`.
+
+4. Кнопка шаринга экрана уже есть в `call.blade.php`, но обработчик для неё ещё не реализован.
+
+Итог: **это не полностью готовый production-проект**, а рабочая основа / прототип, который уже содержит ключевую клиентскую логику видеозвонка и инфраструктуру для дальнейшей доработки.
+
+---
+
+## Стек технологий
+
+### Backend
+
+- PHP 8.2+
+- Laravel 12
+- Laravel Broadcasting
+- Laravel Reverb
+- Laravel Sanctum
+- SQLite по умолчанию
+
+### Frontend
+
+- Vue 3
+- Inertia.js
+- Vite
+- Tailwind CSS
+- Axios
+- Laravel Echo
+- Pusher JS
+- WebRTC API
+
+### Тесты и качество кода
+
+- Pest
+- PHPUnit
+- Laravel Pint
+
+---
+
+## Быстрый запуск проекта
+
+Ниже — базовый сценарий локального запуска.
+
+### 1. Установить зависимости
+
+```bash
+composer install
+npm install
+```
+
+### 2. Создать файл окружения
+
+**Windows (`cmd.exe`):**
+
+```bat
+copy .env.example .env
+```
+
+**macOS / Linux:**
+
+```bash
+cp .env.example .env
+```
+
+### 3. Сгенерировать ключ приложения
+
+```bash
+php artisan key:generate
+```
+
+### 4. Подготовить базу данных
+
+Если используете SQLite, убедитесь, что файл базы существует. В репозитории уже есть `database/database.sqlite`.
+
+Примените миграции и сиды:
+
+```bash
+php artisan migrate --seed
+```
+
+После сида будет создан тестовый пользователь:
+
+- email: `test@example.com`
+- пароль: стандартный пароль фабрики Laravel, если вы его не меняли вручную
+
+Если нужен контроль, лучше создать своих пользователей через регистрацию в интерфейсе.
+
+### 5. Запустить PHP-сервер и Vite
+
+Вариант 1 — стандартно в двух отдельных окнах:
+
+```bash
+php artisan serve
+npm run dev
+```
+
+Вариант 2 — одной командой через composer-скрипт:
+
+```bash
+composer run dev
+```
+
+Этот сценарий поднимает:
+
+- Laravel server
+- очередь
+- просмотр логов
+- Vite dev server
+
+### 6. Запустить Reverb
+
+Для realtime-каналов нужен отдельный websocket-сервер Reverb:
+
+```bash
+php artisan reverb:start
+```
+
+Если без него, приватные каналы и обмен сигналами звонка работать не будут.
+
+---
+
+## Настройка `.env` для Reverb
+
+В текущем проекте код уже ожидает Reverb-настройки, поэтому после копирования `.env.example` нужно вручную добавить или проверить такие переменные:
+
+```dotenv
+BROADCAST_CONNECTION=reverb
+
+REVERB_APP_ID=app-1
+REVERB_APP_KEY=local
+REVERB_APP_SECRET=secret
+
+REVERB_SERVER_HOST=127.0.0.1
+REVERB_SERVER_PORT=8081
+
+REVERB_HOST=127.0.0.1
+REVERB_PORT=8081
+REVERB_SCHEME=http
+
+VITE_REVERB_APP_KEY="${REVERB_APP_KEY}"
+VITE_REVERB_HOST="${REVERB_SERVER_HOST}"
+VITE_REVERB_PORT="${REVERB_SERVER_PORT}"
+VITE_REVERB_SCHEME="${REVERB_SCHEME}"
+```
+
+> Примечание: в `resources/js/bootstrap.js` клиент Echo сейчас жёстко настроен на `forceTLS: true` и `enabledTransports: ['wss']`. Для локального запуска без HTTPS это может потребовать дополнительной правки фронтенд-конфига или запуска через TLS-прокси.
+
+---
+
+## Как пользоваться проектом
+
+### Базовый сценарий
+
+1. Запустить Laravel, Vite и Reverb.
+2. Зарегистрировать двух пользователей или использовать несколько браузерных сессий.
+3. Открыть приложение под разными пользователями.
+4. Перейти в экран контактов / звонка.
+5. Разрешить доступ к камере и микрофону.
+6. Инициировать звонок.
+7. На стороне второго пользователя принять входящий `offer` и отправить `answer`.
+8. После обмена ICE-кандидатами должно установиться WebRTC-соединение.
+
+### Что важно для WebRTC
+
+- в продакшене нужен **HTTPS**;
+- для стабильной работы за NAT обычно нужен **TURN-сервер**;
+- в текущем коде указан только публичный **STUN**;
+- на `localhost` браузеры обычно позволяют тестировать камеру и микрофон без полноценного HTTPS.
+
+---
+
+## Основные файлы проекта
+
+### Backend
+
+- `composer.json` — PHP-зависимости и composer-скрипты
+- `routes/web.php` — текущие web-маршруты приложения
+- `routes/channels.php` — авторизация приватного канала `call.{userId}`
+- `app/Events/CallOfferSent.php` — событие отправки offer
+- `app/Events/CallAnswerSent.php` — заготовка события answer
+- `app/Events/IceCandidateSent.php` — заготовка события ICE candidate
+- `app/Models/User.php` — модель пользователя
+
+### Frontend
+
+- `package.json` — JS-зависимости
+- `resources/js/app.js` — инициализация Inertia/Vue
+- `resources/js/bootstrap.js` — Axios + Echo/Reverb bootstrap
+- `resources/js/call.js` — логика видеозвонка на WebRTC
+- `resources/js/Pages/Dashboard.vue` — стандартный dashboard Inertia
+
+### Blade-шаблоны
+
+- `resources/views/app.blade.php` — корневой Inertia layout
+- `resources/views/contacts.blade.php` — список контактов для звонка
+- `resources/views/call.blade.php` — интерфейс звонка
+
+---
+
+## Какие функции уже предусмотрены
+
+### Реализовано на клиенте
+
+- инициализация камеры и микрофона;
+- подключение к приватному каналу пользователя;
+- отправка `offer`;
+- получение входящего `offer`;
+- ручной ответ `answer`;
+- приём и отправка ICE-кандидатов;
+- отображение двух видеопотоков;
+- завершение звонка;
+- переключение микрофона;
+- переключение камеры.
+
+### Реализовано в приложении в целом
+
+- регистрация;
+- авторизация;
+- работа с профилем;
+- защищённые маршруты через `auth`;
+- базовая тестовая инфраструктура.
+
+### Запланировано / требует доработки
+
+- полноценные маршруты и контроллеры звонков;
+- завершённые broadcast events для `answer` и `candidate`;
+- экран контактов в актуальном маршрутизаторе;
+- экран звонка как часть основного UX;
+- шаринг экрана;
+- TURN-сервер для production;
+- приведение `.env.example` к реальной конфигурации проекта;
+- согласование локального `ws` / `wss` режима для Reverb-клиента.
+
+---
+
+## Тесты
+
+Запуск тестов:
+
+```bash
+php artisan test
+```
+
+Или через composer:
+
+```bash
+composer test
+```
+
+---
+
+## Полезные команды
+
+### Разработка
+
+```bash
+composer run dev
+```
+
+### Отдельный запуск частей проекта
+
+```bash
+php artisan serve
+npm run dev
+php artisan reverb:start
+php artisan queue:listen --tries=1
+```
+
+### Сборка фронтенда
+
+```bash
+npm run build
+```
+
+---
+
+## Известные ограничения
+
+На момент анализа репозитория:
+
+- README изначально был стандартным laravel-шаблоном и не описывал реальный проект;
+- исходные маршруты звонков отсутствуют в `routes/web.php`;
+- часть realtime-логики присутствует только как заготовка;
+- `.env.example` не полностью соответствует текущей архитектуре проекта;
+- локальный запуск WebSocket-части может потребовать согласования `http/ws` и `https/wss` настроек.
+
+---
+
+## Для чего проект подойдёт
+
+Этот репозиторий хорошо подходит как:
+
+- стартовая база для pet-проекта видеочата;
+- учебный пример интеграции Laravel + Reverb + Echo + WebRTC;
+- черновик для CRM/кабинета с функцией звонков между авторизованными пользователями;
+- основа для дальнейшей доработки сигналинга и UI.
+
+---
+
+## Что можно улучшить дальше
+
+Если развивать проект дальше, логичный следующий шаг такой:
+
+1. добавить реальные маршруты и контроллеры для звонков;
+2. завершить события `CallAnswerSent` и `IceCandidateSent`;
+3. привести список контактов и экран звонка в основной UX приложения;
+4. добавить TURN;
+5. реализовать уведомление о входящем звонке;
+6. добавить тесты на сигналинг и авторизацию приватных каналов.
