@@ -66,7 +66,9 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 
 - страницу `dashboard` с кнопкой перехода в контакты;
 - страницу `contacts` в стиле мессенджера;
-- WebRTC-звонки через Laravel Reverb / Echo;
+- страницу сессии `call` с логом сигналинга и статусами соединения;
+- локальный режим без камеры/микрофона: обе стороны обмениваются случайными двузначными числами каждые 2 секунды через WebRTC data-channel;
+- production-режим по HTTPS с реальным WebRTC audio/video;
 - обмен `offer`, `answer` и `ICE candidate` через приватные каналы `call.{userId}`.
 
 ## Reverb ports
@@ -82,7 +84,7 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 2. Поднимите Laravel-приложение.
 3. Поднимите Vite.
 4. Поднимите Reverb.
-5. Откройте приложение в двух разных аккаунтах и начните звонок.
+5. Откройте приложение в двух разных аккаунтах и начните сессию связи.
 
 ### Commands
 
@@ -92,20 +94,36 @@ npm install
 php artisan migrate
 php artisan serve
 npm run dev
-php artisan reverb:start
+php artisan reverb:start --host=0.0.0.0 --port=8081
 ```
 
-## How to test calls locally
+## Local vs production behaviour
+
+### Local / insecure
+
+- определяется по `APP_ENV=local` или по отсутствию secure HTTPS context;
+- `getUserMedia` не вызывается;
+- после `connected` обе стороны каждые 2 секунды отправляют случайное двузначное число;
+- интерфейс показывает, что устройство отправляет и что получает.
+
+### Production / HTTPS
+
+- используется реальный audio/video поток;
+- доступны `microphone`, `camera`, `screen share`;
+- сигналинг остаётся тем же: `offer` / `answer` / `candidate` через Laravel broadcasting.
+
+## How to test locally
 
 1. Войдите под двумя разными пользователями.
 2. Откройте `dashboard` и перейдите в `Контакты`.
-3. Выберите собеседника и нажмите `Позвонить`.
-4. На странице звонка нажмите `Инициализировать`.
+3. Выберите собеседника и нажмите `Открыть чат / звонок`.
+4. В `local` режиме страница откроет data-channel сессию без камеры и микрофона.
 5. На одной стороне нажмите `Позвонить`, на другой — `Ответить`.
+6. После `connected` проверьте, что значения в блоках `Отправляю` и `Получаю` обновляются каждые 2 секунды.
 
 ## Troubleshooting
 
-- Если камера и микрофон не открываются, используйте `localhost` или `127.0.0.1`, либо HTTPS.
-- Если не приходит сигналинг, убедитесь, что запущен `php artisan reverb:start`.
-- Если интерфейс загрузился, но в разных сетях нет медиа, добавьте TURN-сервер в `resources/js/call.js`.
+- Если не приходит сигналинг, убедитесь, что запущен `php artisan reverb:start --host=0.0.0.0 --port=8081`.
+- Если браузер не подключается к websocket, проверьте `VITE_REVERB_HOST`, `VITE_REVERB_PORT=9090` и `VITE_REVERB_SCHEME=https`.
+- Если интерфейс загружается, но медиа в production не поднимается в разных сетях, добавьте TURN-сервер в `resources/js/call.js`.
 - После изменения Vite-переменных из `.env` перезапустите `npm run dev`.

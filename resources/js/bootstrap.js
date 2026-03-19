@@ -14,20 +14,21 @@ import Pusher from 'pusher-js';
 window.Pusher = Pusher;
 
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-const reverbHost = import.meta.env.VITE_REVERB_HOST;
-const reverbPort = Number(import.meta.env.VITE_REVERB_PORT || 443);
-const reverbScheme = import.meta.env.VITE_REVERB_SCHEME || 'https';
-const useTls = reverbScheme === 'https';
+const wsHost = import.meta.env.VITE_REVERB_HOST || window.location.hostname;
+const wsScheme = import.meta.env.VITE_REVERB_SCHEME || (window.location.protocol === 'https:' ? 'https' : 'http');
+const fallbackPort = wsScheme === 'https' ? 443 : 80;
+const wsPort = Number(import.meta.env.VITE_REVERB_PORT || fallbackPort);
+const forceTLS = wsScheme === 'https';
 
 window.Echo = new Echo({
-    broadcaster: 'reverb',
+    broadcaster: 'pusher',
     key: import.meta.env.VITE_REVERB_APP_KEY,
-    wsHost: reverbHost,
-    wsPort: reverbPort,
-    wssPort: reverbPort,
-    forceTLS: useTls,
-    enabledTransports: useTls ? ['wss'] : ['ws', 'wss'],
-
+    wsHost,
+    wsPort,
+    wssPort: wsPort,
+    forceTLS,
+    enabledTransports: forceTLS ? ['wss'] : ['ws', 'wss'],
+    disableStats: true,
     authEndpoint: '/broadcasting/auth',
     auth: {
         headers: {

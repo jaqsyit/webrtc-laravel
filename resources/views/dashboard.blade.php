@@ -19,9 +19,9 @@
             <div class="overflow-hidden rounded-2xl bg-white shadow-sm">
                 <div class="p-6 text-gray-900">
                     <p class="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">WebRTC Chat</p>
-                    <h3 class="mt-2 text-2xl font-semibold text-slate-900">Вы в системе и готовы к звонкам</h3>
+                    <h3 class="mt-2 text-2xl font-semibold text-slate-900">Вы в системе и готовы к чату и звонкам</h3>
                     <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                        Перейдите в контакты, выберите собеседника и начните аудио- или видеозвонок в пару кликов.
+                        Перейдите в контакты, выберите собеседника и откройте чат-сессию. В local-режиме вместо камеры и микрофона приложение будет обмениваться случайными двузначными числами, а в production по HTTPS включатся реальные аудио и видео.
                     </p>
 
                     <div class="mt-6 flex flex-wrap gap-3">
@@ -44,7 +44,8 @@
                     <ul class="mt-4 space-y-3 text-sm leading-6 text-slate-200">
                         <li>1. Откройте страницу контактов.</li>
                         <li>2. Выберите пользователя слева, как в обычном чате.</li>
-                        <li>3. Нажмите кнопку звонка и разрешите доступ к камере и микрофону.</li>
+                        <li>3. Откройте сессию звонка.</li>
+                        <li>4. В local следите за обменом двузначными числами, в production — за медиа-потоком.</li>
                     </ul>
                 </div>
             </div>

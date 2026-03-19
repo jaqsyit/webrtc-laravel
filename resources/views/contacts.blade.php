@@ -3,7 +3,7 @@
         <div class="flex items-center justify-between gap-4">
             <div>
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">Контакты</h2>
-                <p class="mt-1 text-sm text-slate-500">Выберите пользователя слева и начните звонок.</p>
+                <p class="mt-1 text-sm text-slate-500">Страница теперь работает как чат: список собеседников слева, активная сессия справа.</p>
             </div>
 
             <a
@@ -23,7 +23,7 @@
                         <div class="border-b border-white/10 p-5">
                             <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Список контактов</p>
                             <h3 class="mt-2 text-xl font-semibold">Ваши собеседники</h3>
-                            <p class="mt-2 text-sm text-slate-400">Интерфейс теперь похож на мессенджер: список слева, активный чат справа.</p>
+                            <p class="mt-2 text-sm text-slate-400">Слева — список пользователей, справа — окно активного чата/звонка и подсказки по подключению.</p>
                         </div>
 
                         <div class="max-h-[calc(70vh-120px)] overflow-y-auto p-3">
@@ -81,43 +81,49 @@
                                     </div>
                                 </div>
 
-                                <a
-                                    href="{{ route('call.show', $activePeer) }}"
-                                    class="inline-flex items-center rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-400"
-                                >
-                                    Позвонить
-                                </a>
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <span class="inline-flex items-center rounded-2xl bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                        Чат + звонок
+                                    </span>
+                                    <a
+                                        href="{{ route('call.show', $activePeer) }}"
+                                        class="inline-flex items-center rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-400"
+                                    >
+                                        Открыть чат / звонок
+                                    </a>
+                                </div>
                             </div>
 
                             <div class="flex-1 space-y-6 p-6">
                                 <div class="flex justify-start">
                                     <div class="max-w-xl rounded-3xl rounded-bl-md bg-white px-5 py-4 text-sm leading-6 text-slate-700 shadow-sm ring-1 ring-slate-200">
-                                        Откройте страницу звонка и разрешите доступ к камере и микрофону. После этого можно сразу начинать видеозвонок.
+                                        Локально приложение не просит доступ к камере и микрофону. Вместо медиа обе стороны после соединения обмениваются случайными двузначными числами каждые 2 секунды.
                                     </div>
                                 </div>
 
                                 <div class="flex justify-end">
                                     <div class="max-w-xl rounded-3xl rounded-br-md bg-slate-900 px-5 py-4 text-sm leading-6 text-slate-100 shadow-sm">
-                                        Интерфейс контактов теперь оформлен как чат: список собеседников слева и большое окно общения справа.
+                                        В production по HTTPS включается нормальный WebRTC-поток: видео, звук, ICE candidate и screen sharing.
                                     </div>
                                 </div>
 
                                 <div class="grid gap-4 xl:grid-cols-2">
                                     <div class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                                        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Что исправлено</p>
+                                        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Как работает сейчас</p>
                                         <ul class="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-                                            <li>• Подправлен real-time сигналинг для звонка.</li>
-                                            <li>• Исправлен обмен answer и ICE candidate.</li>
-                                            <li>• Улучшено подключение к Reverb по локальному ws/http.</li>
+                                            <li>• Сигналинг идёт через приватные каналы `call.{userId}`.</li>
+                                            <li>• Браузер подключается к внешнему websocket `:9090`.</li>
+                                            <li>• Laravel публикует события во внутренний Reverb на `8081`.</li>
                                         </ul>
                                     </div>
 
                                     <div class="rounded-3xl bg-slate-900 p-5 text-slate-100 shadow-sm">
-                                        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Как звонить</p>
+                                        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Как начать</p>
                                         <ol class="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                                            <li>1. Откройте карточку собеседника.</li>
-                                            <li>2. Нажмите «Позвонить».</li>
-                                            <li>3. На странице звонка нажмите «Инициализировать», затем «Позвонить» или «Ответить».</li>
+                                            <li>1. Выберите пользователя слева.</li>
+                                            <li>2. Нажмите «Открыть чат / звонок».</li>
+                                            <li>3. На странице сессии нажмите «Позвонить» или «Ответить».</li>
+                                            <li>4. В local-режиме следите за блоками «Отправляю» и «Получаю».</li>
                                         </ol>
                                     </div>
                                 </div>
