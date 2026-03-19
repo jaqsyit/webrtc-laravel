@@ -768,7 +768,12 @@ btnShare?.addEventListener('click', () => {
     });
 });
 
-document.addEventListener('DOMContentLoaded', () => {
+let pageInitialized = false;
+
+function initCallPage() {
+    if (pageInitialized) return;
+    pageInitialized = true;
+
     resetNumberBoard();
     updateModeUi();
     syncPlaceholders();
@@ -783,7 +788,13 @@ document.addEventListener('DOMContentLoaded', () => {
             appendActivity('Автоинициализация local-режима не удалась.', 'error');
         });
     }
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCallPage, { once: true });
+} else {
+    initCallPage();
+}
 
 window.addEventListener('beforeunload', () => {
     stopRandomNumbers();
