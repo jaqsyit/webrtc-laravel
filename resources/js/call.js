@@ -181,12 +181,22 @@ function subscribeEcho(){
     console.log("subscribeEcho", { subscribed, Echo: !!window.Echo, me });
     if (subscribed || !window.Echo || !me) {
         console.log("Echo not ready or already subscribed");
+        // Если Echo ещё не готов, повторяем через 500ms
+        if (!subscribed && !window.Echo && me) {
+            setTimeout(subscribeEcho, 500);
+        }
         return;
     }
 
-    window.Echo.private('call.' + me)
-        .subscribed(() => console.log('✅ subscribed to call.' + me))
-        .error(err => console.error('❌ subscription error call.' + me, err))
+    const channelName = 'call.' + me;
+    console.log('Subscribing to private channel:', channelName);
+
+    window.Echo.private(channelName)
+        .subscribed(() => console.log('✅ subscribed to ' + channelName))
+        .error(err => {
+            console.error('❌ subscription error ' + channelName, err);
+            setStatus('Ошибка подписки на канал. Проверьте авторизацию broadcasting.');
+        })
         // входящий OFFER => активируем кнопку «Ответить»
         .listen('.call.offer', async (e) => {
             pendingOffer = normalizeSDP(e.sdp);
@@ -375,6 +385,23 @@ async function toggleScreenShare(){
     if (btnShare) btnShare.textContent = 'Шэр экрана';
 }
 
+// ===== toggle Mic / Cam =====
+function toggleMic(){
+    if (!localStream) return;
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (!audioTrack) return;
+    audioTrack.enabled = !audioTrack.enabled;
+    if (btnMic) btnMic.textContent = audioTrack.enabled ? "Микрофон выкл" : "Микрофон вкл";
+}
+
+function toggleCam(){
+    if (!localStream) return;
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (!videoTrack) return;
+    videoTrack.enabled = !videoTrack.enabled;
+    if (btnCam) btnCam.textContent = videoTrack.enabled ? "Камера выкл" : "Камера вкл";
+}
+
 // привязки
 btnInit?.addEventListener("click", async ()=>{
     try{
@@ -409,8 +436,14 @@ btnShare?.addEventListener("click", () => {
     });
 });
 
-document.addEventListener("DOMContentLoaded", ()=> {
+if (document.readyState === 'loading') {
+    document.addEventListener("DOMContentLoaded", () => {
+        setStatus("готов");
+        subscribeEcho();
+    });
+} else {
+    // DOMContentLoaded уже произошёл (dynamic import)
     setStatus("готов");
     subscribeEcho();
-});
+}
 window.addEventListener("beforeunload", () => { try{ hangup(); }catch{} });

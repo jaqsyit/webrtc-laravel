@@ -27,6 +27,8 @@ window.Echo = new Echo({
     wssPort: reverbPort,
     forceTLS: useTls,
     enabledTransports: ['ws', 'wss'],
+    disableStats: true,
+    enableLogging: true,
 
     authEndpoint: '/broadcasting/auth',
     auth: {

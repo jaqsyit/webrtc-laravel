@@ -12,7 +12,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
 class CallOfferSent implements ShouldBroadcastNow {
-    use InteractsWithSockets, SerializesModels;
+    use Dispatchable, InteractsWithSockets, SerializesModels;
     public function __construct(public $toUserId, public $fromUserId, public $sdp){}
     public function broadcastOn(){ return new PrivateChannel('call.'.$this->toUserId); }
     public function broadcastAs(){ return 'call.offer'; }
